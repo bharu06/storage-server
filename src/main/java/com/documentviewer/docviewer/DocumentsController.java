@@ -74,7 +74,7 @@ public class DocumentsController {
         RestTemplate restTemplate = new RestTemplate();
 
         String url = "https://staging.cloud-elements.com/elements/api-v2/files?path=abc3.txt";
-        
+
         MultiValueMap<String, Object> parts =
                 new LinkedMultiValueMap<String, Object>();
         parts.add("file", new ByteArrayResource(new byte[]{1,2,3,4}));
