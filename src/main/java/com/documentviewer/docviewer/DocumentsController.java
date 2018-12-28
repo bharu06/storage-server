@@ -18,7 +18,9 @@ import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
@@ -37,6 +39,9 @@ public class DocumentsController {
     ObjectMapper objectMapper = new ObjectMapper();
     @Value("${key}")
     private String key;
+
+    @Value("${serverip}")
+    private String serverip;
 
 
 
@@ -62,36 +67,65 @@ public class DocumentsController {
         return responseObj.getBody();
     }
 
-    @RequestMapping(value = "/addfile", method = RequestMethod.GET)
+    /**
+     * POST on /files.
+     * @param path
+     * @param file
+     * @param servletResponse
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(value = "/files", method = RequestMethod.POST)
     public String addfile(@RequestParam final String path,
-                        HttpServletResponse servletResponse) throws Exception {
+                          @RequestParam("file") MultipartFile file,
+                          HttpServletResponse servletResponse) throws Exception {
 
         System.out.println("Add file called");
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "User R3TZtW2uIQ6LyejWZREefYP3eqejEcUd9nn8ObJOsPg=, Organization 57b84be33de31c80f177a9b8e7d3c7d3, Element SwPRqYDKi4TNmDdu645dm7SL1iDFf1MwtKRM+j8RZRs=");
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        String uri = "https://staging.cloud-elements.com/elements/api-v2/files?path=" + path + "/" + file.getOriginalFilename();
+        System.out.println("Uploading to " + uri);
+
+        ByteArrayResource fileAsResource = new ByteArrayResource(file.getBytes()) {
+            @Override
+            public String getFilename() {
+                return file.getOriginalFilename();
+            }
+
+            @Override
+            public long contentLength() {
+                return file.getSize();
+            }
+        };
+        MultiValueMap<String, Object> parts = new LinkedMultiValueMap<String, Object>();
+        parts.add("file", fileAsResource);
+        parts.add("fileName", file.getOriginalFilename());
+
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.set("Authorization", "User R3TZtW2uIQ6LyejWZREefYP3eqejEcUd9nn8ObJOsPg=, Organization 57b84be33de31c80f177a9b8e7d3c7d3, Element SwPRqYDKi4TNmDdu645dm7SL1iDFf1MwtKRM+j8RZRs=");
+        httpHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<MultiValueMap<String, Object>>(parts, httpHeaders);
+
 
         RestTemplate restTemplate = new RestTemplate();
+        try {
+            ResponseEntity<String> responseEntity = restTemplate.exchange(uri,
+                    HttpMethod.POST,
+                    requestEntity,
+                    String.class);
 
-        String url = "https://staging.cloud-elements.com/elements/api-v2/files?path=abc3.txt";
-
-        MultiValueMap<String, Object> parts =
-                new LinkedMultiValueMap<String, Object>();
-        parts.add("file", new ByteArrayResource(new byte[]{1,2,3,4}));
-        parts.add("filename", "abc.txt");
-
-
-        HttpEntity<MultiValueMap<String, Object>> requestEntity =
-                new HttpEntity<MultiValueMap<String, Object>>(parts, headers);
-
-        // file upload path on destination server
-        parts.add("path", "/data/abcnew.txt");
-
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
-
-        return response.getBody();
+            System.out.println(responseEntity.getStatusCode());
+            servletResponse.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+            servletResponse.setHeader("Location", "http://"+serverip+ "/?path="+path);
+            return "";
+        } catch (HttpClientErrorException exception) {
+            if (exception.getStatusCode() == HttpStatus.CONFLICT) {
+                return "File with path=" + path + " and name=" + file.getOriginalFilename() + " name exists";
+            }
+            servletResponse.sendError(500, exception.getMessage());
+            return "";
+        }
     }
-
     @CrossOrigin
     @RequestMapping("/contents")
     public String contents(@RequestParam final String path,
