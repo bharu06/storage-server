@@ -17,10 +17,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletResponse;
@@ -77,8 +74,7 @@ public class DocumentsController {
         RestTemplate restTemplate = new RestTemplate();
 
         String url = "https://staging.cloud-elements.com/elements/api-v2/files?path=abc3.txt";
-
- //MultipartFile file = request.getFile(itr.next());
+        
         MultiValueMap<String, Object> parts =
                 new LinkedMultiValueMap<String, Object>();
         parts.add("file", new ByteArrayResource(new byte[]{1,2,3,4}));
@@ -96,6 +92,7 @@ public class DocumentsController {
         return response.getBody();
     }
 
+    @CrossOrigin
     @RequestMapping("/contents")
     public String contents(@RequestParam final String path,
                         HttpServletResponse servletResponse) throws Exception {
@@ -105,14 +102,9 @@ public class DocumentsController {
         HttpEntity<String> entityReq = new HttpEntity<String>("", headers);
         Map<String, String> params = new HashMap<String, String>();
         params.put("path", path);
-        //params.put("Authorization", "User R3TZtW2uIQ6LyejWZREefYP3eqejEcUd9nn8ObJOsPg=, Organization 57b84be33de31c80f177a9b8e7d3c7d3, Element SwPRqYDKi4TNmDdu645dm7SL1iDFf1MwtKRM+j8RZRs=");
         RestTemplate restTemplate = new RestTemplate();
         String url = "https://staging.cloud-elements.com/elements/api-v2/folders/contents?path={path}";
         ResponseEntity<String> responseObj = restTemplate.exchange(url, HttpMethod.GET,entityReq, String.class, params);
-        //node.put("name", " bhargavi");
-//        servletResponse.setHeader(HttpHeaders.CONTENT_TYPE, "text");
-//        servletResponse.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=abc.txt");
-        //servletResponse.setHeader("filename", "abc.txt");
         return responseObj.getBody();
     }
 
